@@ -2,7 +2,7 @@ version: '2'
 
 services:
   rocketchat:
-    image: rocketchat/rocket.chat:latest
+    image: rocketchat/rocket.chat:2.1.0
     command: >
       bash -c
         "for i in `seq 1 30`; do
@@ -12,8 +12,6 @@ services:
           sleep 5;
         done; (exit $$s)"
     restart: unless-stopped
-    volumes:
-      - ./uploads:/app/uploads
     environment:
       - PORT=3000
       - ROOT_URL=http://localhost:3000
@@ -24,17 +22,16 @@ services:
       - mongo
     ports:
       - 3000:3000
+    links:
+      - mongo:secure.gravatar.com
 
   mongo:
-    image: mongo:4.0
+    image: mongo:4.2.0
     restart: unless-stopped
-    volumes:
-     - ./data/db:/data/db
-     #- ./data/dump:/dump
-    command: mongod --smallfiles --oplogSize 128 --replSet rs0 --storageEngine=mmapv1
+    command: mongod --oplogSize 128 --replSet rs0 
 
   mongo-init-replica:
-    image: mongo:4.0
+    image: mongo:4.2.0
     command: >
       bash -c
         "for i in `seq 1 30`; do
