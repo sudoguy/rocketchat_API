@@ -5,16 +5,31 @@ from rocketchat_API.APIExceptions.RocketExceptions import RocketAuthenticationEx
 from rocketchat_API.rocketchat import RocketChat
 
 
-class TestServer(unittest.TestCase):
+class TestBase(unittest.TestCase):
     def setUp(self):
         self.rocket = RocketChat()
         self.user = 'user1'
         self.password = 'password'
         self.email = 'email@domain.com'
-        self.rocket.users_register(
-            email=self.email, name=self.user, password=self.password, username=self.user)
-        self.rocket = RocketChat(self.user, self.password)
+        error = True
+        while error:
+            try:
+                self.rocket.users_register(
+                    email=self.email, name=self.user, password=self.password, username=self.user)
+                error = False
+            except:
+                pass
 
+        self.rocket = None
+
+        while self.rocket is None:
+            try:
+                self.rocket = RocketChat(self.user, self.password)
+            except RocketAuthenticationException:
+                pass
+
+
+class TestServer(TestBase):
     def test_info(self):
         info = self.rocket.info().json()
         self.assertTrue('info' in info)
@@ -40,15 +55,9 @@ class TestServer(unittest.TestCase):
         self.assertIsNotNone(spotlight.get('rooms'), 'No rooms list found')
 
 
-class TestUsers(unittest.TestCase):
+class TestUsers(TestBase):
     def setUp(self):
-        self.rocket = RocketChat()
-        self.user = 'user1'
-        self.password = 'password'
-        self.email = 'email@domain.com'
-        self.rocket.users_register(
-            email=self.email, name=self.user, password=self.password, username=self.user)
-        self.rocket = RocketChat(self.user, self.password)
+        super(TestUsers, self).setUp()
         user2_exists = self.rocket.users_info(
             username='user2').json().get('success')
         if user2_exists:
@@ -211,16 +220,7 @@ class TestUsers(unittest.TestCase):
         self.assertTrue(users_list.get('success'))
 
 
-class TestChat(unittest.TestCase):
-    def setUp(self):
-        self.rocket = RocketChat()
-        self.user = 'user1'
-        self.password = 'password'
-        self.email = 'email@domain.com'
-        self.rocket.users_register(
-            email=self.email, name=self.user, password=self.password, username=self.user)
-        self.rocket = RocketChat(self.user, self.password)
-
+class TestChat(TestBase):
     def test_chat_post_update_delete_message(self):
         chat_post_message = self.rocket.chat_post_message(
             "hello", channel='GENERAL').json()
@@ -288,16 +288,11 @@ class TestChat(unittest.TestCase):
         self.assertIn('receipts', chat_get_message_read_receipts)
 
 
-class TestChannels(unittest.TestCase):
+class TestChannels(TestBase):
     def setUp(self):
-        self.rocket = RocketChat()
-        self.user = 'user1'
-        self.password = 'password'
-        self.email = 'email@domain.com'
-        self.rocket.users_register(
-            email=self.email, name=self.user, password=self.password, username=self.user)
+        super(TestChannels, self).setUp()
+
         self.rocket.channels_add_owner('GENERAL', username=self.user)
-        self.rocket = RocketChat(self.user, self.password)
 
         testuser = self.rocket.users_info(username='testuser1').json()
         if not testuser.get('success'):
@@ -558,15 +553,9 @@ class TestChannels(unittest.TestCase):
             self.rocket.channels_counters()
 
 
-class TestGroups(unittest.TestCase):
+class TestGroups(TestBase):
     def setUp(self):
-        self.rocket = RocketChat()
-        self.user = 'user1'
-        self.password = 'password'
-        self.email = 'email@domain.com'
-        self.rocket.users_register(
-            email=self.email, name=self.user, password=self.password, username=self.user)
-        self.rocket = RocketChat(self.user, self.password)
+        super(TestGroups, self).setUp()
         testuser = self.rocket.users_info(username='testuser1').json()
         if not testuser.get('success'):
             testuser = self.rocket.users_create(
@@ -805,19 +794,7 @@ class TestGroups(unittest.TestCase):
             self.rocket.groups_files()
 
 
-class TestRooms(unittest.TestCase):
-    def setUp(self):
-        self.rocket = RocketChat()
-        self.user = 'user1'
-        self.password = 'password'
-        self.email = 'email@domain.com'
-        self.rocket.users_register(
-            email=self.email, name=self.user, password=self.password, username=self.user)
-        self.rocket = RocketChat(self.user, self.password)
-
-    def tearDown(self):
-        pass
-
+class TestRooms(TestBase):
     def test_rooms_upload(self):
         # ToDo: Find a better way to test that this endpoint actually works fine (when using json and not data fails
         # silently)
@@ -861,26 +838,30 @@ class TestRooms(unittest.TestCase):
             self.rocket.rooms_info()
 
 
-class TestIMs(unittest.TestCase):
+class TestIMs(TestBase):
+    # TODO: Fix the user creation for this test
     def setUp(self):
-        self.rocket = RocketChat()
-        self.user = 'user1'
-        self.password = 'password'
-        self.email = 'email@domain.com'
-        self.rocket.users_register(
-            email=self.email, name=self.user,
-            password=self.password, username=self.user)
-        # Register DM recipient
+        super(TestIMs, self).setUp()
+        # Register DM recipient          
         self.recipient_user = 'user2'
         self.recipient_password = 'password'
         self.recipient_email = 'email2@domain.com'
-        self.rocket.users_register(
-            email=self.recipient_email, name=self.recipient_user,
-            password=self.recipient_password, username=self.recipient_user)
-        self.rocket = RocketChat(self.user, self.password)
-
-    def tearDown(self):
-        pass
+        error = True
+        while error:
+            try:
+                self.rocket.users_register(
+                    email=self.recipient_email, name=self.recipient_user,
+                    password=self.recipient_password, username=self.recipient_user)
+                error = False
+            except:
+                pass
+            
+        authorized = None
+        while authorized is None:
+            try:
+                authorized = RocketChat(self.recipient_user, self.recipient_password)
+            except RocketAuthenticationException:
+                pass
 
     def test_im_create(self):
         im_create = self.rocket.im_create(self.recipient_user).json()
@@ -962,19 +943,7 @@ class TestIMs(unittest.TestCase):
             self.rocket.im_counters()
 
 
-class TestSettings(unittest.TestCase):
-    def setUp(self):
-        self.rocket = RocketChat()
-        self.user = 'user1'
-        self.password = 'password'
-        self.email = 'email@domain.com'
-        self.rocket.users_register(
-            email=self.email, name=self.user, password=self.password, username=self.user)
-        self.rocket = RocketChat(self.user, self.password)
-
-    def tearDown(self):
-        pass
-
+class TestSettings(TestBase):
     def test_settings(self):
         settings = self.rocket.settings().json()
         self.assertTrue(settings.get('success'))
@@ -987,19 +956,7 @@ class TestSettings(unittest.TestCase):
         self.assertTrue(settings_update.get('success'))
 
 
-class TestSubscriptions(unittest.TestCase):
-    def setUp(self):
-        self.rocket = RocketChat()
-        self.user = 'user1'
-        self.password = 'password'
-        self.email = 'email@domain.com'
-        self.rocket.users_register(
-            email=self.email, name=self.user, password=self.password, username=self.user)
-        self.rocket = RocketChat(self.user, self.password)
-
-    def tearDown(self):
-        pass
-
+class TestSubscriptions(TestBase):
     def test_subscriptions_get(self):
         subscriptions_get = self.rocket.subscriptions_get().json()
         self.assertTrue(subscriptions_get.get('success'))
@@ -1022,19 +979,7 @@ class TestSubscriptions(unittest.TestCase):
         self.assertTrue(subscriptions_read.get('success'), 'Call did not succeed')
 
 
-class TestAssets(unittest.TestCase):
-    def setUp(self):
-        self.rocket = RocketChat()
-        self.user = 'user1'
-        self.password = 'password'
-        self.email = 'email@domain.com'
-        self.rocket.users_register(
-            email=self.email, name=self.user, password=self.password, username=self.user)
-        self.rocket = RocketChat(self.user, self.password)
-
-    def tearDown(self):
-        pass
-
+class TestAssets(TestBase):
     def test_assets_set_asset(self):
         assets_set_asset = self.rocket.assets_set_asset(asset_name='logo', file='tests/logo.png').json()
         self.assertTrue(assets_set_asset.get('success'))
@@ -1044,19 +989,7 @@ class TestAssets(unittest.TestCase):
         self.assertTrue(assets_unset_asset.get('success'))
 
 
-class TestPermissions(unittest.TestCase):
-    def setUp(self):
-        self.rocket = RocketChat()
-        self.user = 'user1'
-        self.password = 'password'
-        self.email = 'email@domain.com'
-        self.rocket.users_register(
-            email=self.email, name=self.user, password=self.password, username=self.user)
-        self.rocket = RocketChat(self.user, self.password)
-
-    def tearDown(self):
-        pass
-
+class TestPermissions(TestBase):
     def test_permissions_list_all(self):
         permissions_list_all = self.rocket.permissions_list_all().json()
         self.assertTrue(permissions_list_all.get('success'))
