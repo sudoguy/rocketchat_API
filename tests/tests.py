@@ -839,10 +839,9 @@ class TestRooms(TestBase):
 
 
 class TestIMs(TestBase):
-    # TODO: Fix the user creation for this test
     def setUp(self):
         super(TestIMs, self).setUp()
-        # Register DM recipient          
+        # Register DM recipient
         self.recipient_user = 'user2'
         self.recipient_password = 'password'
         self.recipient_email = 'email2@domain.com'
